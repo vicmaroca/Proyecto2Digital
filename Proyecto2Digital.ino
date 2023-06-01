@@ -9,10 +9,10 @@ Servo servomotor2;
 Servo servomotor3;
 Servo servomotor4;
 
-int direccionX = A0;
-int direccionY = A1;
-int direccionX2 = A2;
-int direccionY2 = A3;
+int direccionX = 14;  // Pin analógico A0
+int direccionY = 15;  // Pin analógico A1
+int direccionX2 = 16; // Pin analógico A2
+int direccionY2 = 17; // Pin analógico A3
 int pulsador_guardar = 8;
 int pulsador_realizar = 7;
 int pulsador_nuevo = 6;
@@ -84,10 +84,10 @@ void setup()
   servomotor3.attach(4);
   servomotor4.attach(5);
 
-  pinMode(direccionX, INPUT);
-  pinMode(direccionY, INPUT);
-  pinMode(direccionX2, INPUT);
-  pinMode(direccionY2, INPUT);
+  pinMode(direccionX, INPUT_PULLUP);
+  pinMode(direccionY, INPUT_PULLUP);
+  pinMode(direccionX2, INPUT_PULLUP);
+  pinMode(direccionY2, INPUT_PULLUP);
 
   pinMode(pulsador_guardar, INPUT_PULLUP);
   pinMode(pulsador_realizar, INPUT_PULLUP);
@@ -111,9 +111,9 @@ void loop()
   lecturaX2 = analogRead(direccionX2);
   lecturaY2 = analogRead(direccionY2);
 
-  lectura_pulsador_guardar = digitalRead(pulsador_guardar);
-  lectura_pulsador_realizar = digitalRead(pulsador_realizar);
-  lectura_pulsador_nuevo = digitalRead(pulsador_nuevo);
+  lectura_pulsador_guardar = !digitalRead(pulsador_guardar);
+  lectura_pulsador_realizar = !digitalRead(pulsador_realizar);
+  lectura_pulsador_nuevo = !digitalRead(pulsador_nuevo);
 
   if (lecturaX >= 550)
   {
@@ -153,7 +153,7 @@ void loop()
     }
   }
 
-  if (lectura_pulsador_guardar == LOW)
+  if (lectura_pulsador_guardar)
   {
     guardarPosiciones();
     lcd.backlight();
@@ -205,7 +205,7 @@ void loop()
     }
   }
 
-  if (lectura_pulsador_realizar == LOW)
+  if (lectura_pulsador_realizar)
   {
     restaurarPosiciones();
     servomotor.write(posicion_servo);
@@ -220,7 +220,7 @@ void loop()
     delay(1000); // Espera un segundo para evitar guardar múltiples veces
   }
 
-  if (lectura_pulsador_nuevo == LOW)
+  if (lectura_pulsador_nuevo)
   {
     for (int i = 0; i < 2; i++)
     {
@@ -241,3 +241,4 @@ void loop()
   lcd.setCursor(0, 1);
   lcd.print("           ");
 }
+
