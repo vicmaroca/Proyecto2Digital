@@ -1,95 +1,231 @@
-#include <avr/io.h>
-#include <avr/eeprom.h>
-#include <util/delay.h>
+#include <Servo.h>
+#include <EEPROM.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x27, 20, 4);
 
-#define EEPROM_ADDR 0x00     // Dirección base de la EEPROM
-#define SERVO_PIN PB1        // Pin de control del servomotor
-#define POT_PIN PC5        // Pin de lectura del potenciómetro
-#define BUTTON_A_PIN PB2     // Pin del botón A
-#define BUTTON_B_PIN PB3     // Pin del botón B
+Servo servomotor;
+Servo servomotor2;
+Servo servomotor3;
+Servo servomotor4;
 
-void servoWrite(uint8_t angle) {
-    OCR1A = (angle * 19) / 2 + 600;    // Cálculo del valor del registro de comparación para generar el pulso PWM
-    _delay_ms(15);                     // Esperar para asegurar el movimiento del servomotor
+int direccionX = 2;
+int direccionY = 3;
+int direccionX2 = 4;
+int direccionY2 = 5;
+int pulsador_guardar = 8;
+int pulsador_realizar = 7;
+int pulsador_nuevo = 6;
+
+int lectura_pulsador_guardar;
+int lectura_pulsador_realizar;
+int lectura_pulsador_nuevo;
+
+int posicion_servo = 90;
+int posicion_servo2 = 90;
+int posicion_servo3 = 0;
+int posicion_servo4 = 0;
+
+const int EEPROM_ADDR_SERVO1 = 0;
+const int EEPROM_ADDR_SERVO2 = 1;
+const int EEPROM_ADDR_SERVO3 = 2;
+const int EEPROM_ADDR_SERVO4 = 3;
+
+volatile bool guardarPosicion = false;
+volatile bool realizarAccion = false;
+volatile bool realizarAccionNuevo = false;
+
+void guardarPosiciones()
+{
+  EEPROM.write(EEPROM_ADDR_SERVO1, posicion_servo);
+  EEPROM.write(EEPROM_ADDR_SERVO2, posicion_servo2);
+  EEPROM.write(EEPROM_ADDR_SERVO3, posicion_servo3);
+  EEPROM.write(EEPROM_ADDR_SERVO4, posicion_servo4);
 }
 
-void servoSavePosition(uint8_t position) {
-    eeprom_update_byte((uint8_t*)EEPROM_ADDR, position);   // Guardar la posición actual en la EEPROM
-    _delay_ms(10);                                         // Esperar para asegurar que se escriba en la EEPROM correctamente
+void restaurarPosiciones()
+{
+  posicion_servo = EEPROM.read(EEPROM_ADDR_SERVO1);
+  posicion_servo2 = EEPROM.read(EEPROM_ADDR_SERVO2);
+  posicion_servo3 = EEPROM.read(EEPROM_ADDR_SERVO3);
+  posicion_servo4 = EEPROM.read(EEPROM_ADDR_SERVO4);
+
+  lcd.init();
+  lcd.init();
 }
 
-uint8_t servoLoadPosition() {
-    return eeprom_read_byte((uint8_t*)EEPROM_ADDR);   // Leer la posición almacenada en la EEPROM
+void handleGuardarPosicion()
+{
+  guardarPosicion = true;
 }
 
-void adcInit() {
-    ADMUX |= (1 << REFS0);                   // Establecer la referencia de voltaje en AVCC
-    ADCSRA |= (1 << ADEN) | (1 << ADPS2);    // Habilitar el ADC y establecer el prescaler en 16
+void handleRealizarAccion()
+{
+  realizarAccion = true;
 }
 
-uint16_t adcRead(uint8_t channel) {
-    ADMUX = (ADMUX & 0xF0) | (channel & 0x0F);      // Seleccionar el canal de entrada del ADC
-    ADCSRA |= (1 << ADSC);                           // Iniciar la conversión ADC
-    while (ADCSRA & (1 << ADSC));                     // Esperar a que la conversión ADC se complete
-    return ADC;                                      // Devolver el valor convertido
+void handleRealizarAccionNuevo()
+{
+  realizarAccionNuevo = true;
 }
 
-void buttonInit() {
-    DDRB &= ~((1 << BUTTON_A_PIN) | (1 << BUTTON_B_PIN));    // Configurar los pines de los botones como entradas
-    PORTB |= (1 << BUTTON_A_PIN) | (1 << BUTTON_B_PIN);      // Activar las resistencias pull-up internas de los botones
+void setup()
+{
+  servomotor.attach(9);
+  servomotor2.attach(10);
+  servomotor3.attach(11);
+  servomotor4.attach(12);
+
+  pinMode(direccionX, INPUT_PULLUP);
+  pinMode(direccionY, INPUT_PULLUP);
+  pinMode(direccionX2, INPUT_PULLUP);
+  pinMode(direccionY2, INPUT_PULLUP);
+
+  pinMode(pulsador_guardar, INPUT_PULLUP);
+  pinMode(pulsador_realizar, INPUT_PULLUP);
+  pinMode(pulsador_nuevo, INPUT_PULLUP);
+
+  attachInterrupt(digitalPinToInterrupt(pulsador_guardar), handleGuardarPosicion, FALLING);
+  attachInterrupt(digitalPinToInterrupt(pulsador_realizar), handleRealizarAccion, FALLING);
+  attachInterrupt(digitalPinToInterrupt(pulsador_nuevo), handleRealizarAccionNuevo, FALLING);
+
+  restaurarPosiciones();
+  servomotor.write(posicion_servo);
+  servomotor2.write(posicion_servo2);
+  servomotor3.write(posicion_servo3);
+  servomotor4.write(posicion_servo4);
 }
 
-int buttonAPressed() {
-    if (!(PINB & (1 << BUTTON_A_PIN))) {    // Verificar si el botón A está presionado
-        _delay_ms(10);                         // Debounce: esperar un corto tiempo para evitar rebotes
-        if (!(PINB & (1 << BUTTON_A_PIN))) {  // Verificar nuevamente si el botón A sigue presionado
-            return 1;                           // Indicar que el botón A ha sido presionado
-        }
+void loop()
+{
+  lectura_pulsador_guardar = digitalRead(pulsador_guardar);
+  lectura_pulsador_realizar = digitalRead(pulsador_realizar);
+  lectura_pulsador_nuevo = digitalRead(pulsador_nuevo);
+
+  if (digitalRead(direccionX) == LOW)
+  {
+    posicion_servo++;
+
+    if (posicion_servo > 180)
+    {
+      posicion_servo = 180;
     }
-    return 0;                             // Indicar que el botón A no ha sido presionado
+  }
+  if (digitalRead(direccionX2) == LOW)
+  {
+    posicion_servo3++;
+
+    if (posicion_servo3 > 180)
+    {
+      posicion_servo3 = 180;
+    }
+  }
+
+  if (digitalRead(direccionX) == HIGH)
+  {
+    posicion_servo--;
+
+    if (posicion_servo < 0)
+    {
+      posicion_servo = 0;
+    }
+  }
+  if (digitalRead(direccionX2) == HIGH)
+  {
+    posicion_servo3--;
+
+    if (posicion_servo3 < 0)
+    {
+      posicion_servo3 = 0;
+    }
+  }
+
+  if (lectura_pulsador_guardar == LOW)
+  {
+    guardarPosiciones();
+    lcd.backlight();
+    lcd.setCursor(0, 0);
+    lcd.print("guardando         ");
+    lcd.setCursor(0, 1);
+    lcd.print("           ");
+    delay(1000); // Espera un segundo para evitar guardar múltiples veces
+  }
+
+  servomotor.write(posicion_servo);
+  servomotor3.write(posicion_servo3);
+
+  if (digitalRead(direccionY) == LOW)
+  {
+    posicion_servo2++;
+
+    if (posicion_servo2 > 180)
+    {
+      posicion_servo2 = 180;
+    }
+  }
+  if (digitalRead(direccionY2) == LOW)
+  {
+    posicion_servo4++;
+
+    if (posicion_servo4 > 180)
+    {
+      posicion_servo4 = 180;
+    }
+  }
+
+  if (digitalRead(direccionY) == HIGH)
+  {
+    posicion_servo2--;
+
+    if (posicion_servo2 < 0)
+    {
+      posicion_servo2 = 0;
+    }
+  }
+  if (digitalRead(direccionY2) == HIGH)
+  {
+    posicion_servo4--;
+
+    if (posicion_servo4 < 0)
+    {
+      posicion_servo4 = 0;
+    }
+  }
+
+  if (lectura_pulsador_realizar == LOW)
+  {
+    restaurarPosiciones();
+    servomotor.write(posicion_servo);
+    servomotor2.write(posicion_servo2);
+    servomotor3.write(posicion_servo3);
+    servomotor4.write(posicion_servo4);
+    lcd.backlight();
+    lcd.setCursor(0, 0);
+    lcd.print("Reproduciendo         ");
+    lcd.setCursor(0, 1);
+    lcd.print("           ");
+    delay(1000); // Espera un segundo para evitar guardar múltiples veces
+  }
+
+  if (lectura_pulsador_nuevo == LOW)
+  {
+    for (int i = 0; i < 2; i++)
+    {
+      // Subir y bajar dos veces
+      // Código para subir
+      // ...
+      delay(1000); // Esperar un segundo antes de bajar nuevamente
+    }
+    delay(1000); // Espera un segundo para evitar ejecutar múltiples veces
+  }
+
+  servomotor2.write(posicion_servo2);
+  servomotor4.write(posicion_servo4);
+  delay(10);
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Brazo robotico ");
+  lcd.setCursor(0, 1);
+  lcd.print("           ");
 }
 
-int buttonBPressed() {
-    if (!(PINB & (1 << BUTTON_B_PIN))) {    // Verificar si el botón B está presionado
-        _delay_ms(10);                         // Debounce: esperar un corto tiempo para evitar rebotes
-        if (!(PINB & (1 << BUTTON_B_PIN))) {  // Verificar nuevamente si el botón B sigue presionado
-            return 1;                           // Indicar que el botón B ha sido presionado
-        }
-    }
-    return 0;                             // Indicar que el botón B no ha sido presionado
-}
-
-int main(void) {
-    DDRB |= (1 << SERVO_PIN);                // Configurar el pin del servomotor como salida
-    TCCR1A |= (1 << COM1A1) | (1 << WGM11);   // Configurar el modo de operación del temporizador en modo Fast PWM de 10 bits
-    TCCR1B |= (1 << WGM13) | (1 << WGM12) | (1 << CS11);   // Configurar el prescaler del temporizador en 8
-    ICR1 = 19999;                             // Establecer el valor máximo del temporizador para obtener una frecuencia de PWM de 50 Hz
-
-    adcInit();                                // Inicializar el ADC
-    buttonInit();                             // Inicializar los botones
-
-    uint8_t storedPos = servoLoadPosition();   // Leer la posición almacenada en la EEPROM
-
-    if (storedPos >= 0 && storedPos <= 180) {   // Verificar si la posición almacenada es válida
-        servoWrite(storedPos);                  // Mover el servomotor a la posición almacenada
-        _delay_ms(1000);                         // Esperar un segundo
-    }
-
-    uint8_t angle = 0;
-    uint8_t previousAngle = 0;
-
-    while (1) {
-        if (buttonAPressed()) {                   // Verificar si el botón A está presionado
-            servoWrite(previousAngle);                // Mover el servomotor a la posición anterior
-        } else if (buttonBPressed()) {            // Verificar si el botón B está presionado
-            angle = adcRead(POT_PIN) / 4;             // Leer el valor del potenciómetro y convertirlo a un ángulo entre 0 y 180
-            servoSavePosition(angle);                  // Guardar la posición actual en la EEPROM
-            previousAngle = angle;                      // Actualizar la posición anterior con la posición actual
-            servoWrite(angle);                           // Mover el servomotor al ángulo calculado
-            _delay_ms(10);                                 // Esperar para asegurar que se escriba en la EEPROM correctamente
-        } else {
-            angle = adcRead(POT_PIN) / 4;             // Leer el valor del potenciómetro y convertirlo a un ángulo entre 0 y 180
-            servoWrite(angle);                           // Mover el servomotor al ángulo calculado
-        }
-    }
-}
