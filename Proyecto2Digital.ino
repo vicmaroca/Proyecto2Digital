@@ -9,23 +9,13 @@ Servo servomotor2;
 Servo servomotor3;
 Servo servomotor4;
 
-int direccionX = 14;  // Pin analógico A0
-int direccionY = 15;  // Pin analógico A1
-int direccionX2 = 16; // Pin analógico A2
-int direccionY2 = 17; // Pin analógico A3
 int pulsador_guardar = 8;
 int pulsador_realizar = 7;
 int pulsador_nuevo = 6;
 
-int lecturaX;
-int lecturaY;
 int lectura_pulsador_guardar;
 int lectura_pulsador_realizar;
 int lectura_pulsador_nuevo;
-int lecturaX2;
-int lecturaY2;
-int lectura_pulsador_guardar2;
-int lectura_pulsador_realizar2;
 
 int posicion_servo = 90;
 int posicion_servo2 = 90;
@@ -40,8 +30,6 @@ const int EEPROM_ADDR_SERVO4 = 3;
 volatile bool guardarPosicion = false;
 volatile bool realizarAccion = false;
 volatile bool realizarAccionNuevo = false;
-volatile bool guardarPosicion2 = false;
-volatile bool realizarAccion2 = false;
 
 void guardarPosiciones()
 {
@@ -84,11 +72,6 @@ void setup()
   servomotor3.attach(4);
   servomotor4.attach(5);
 
-  pinMode(direccionX, INPUT_PULLUP);
-  pinMode(direccionY, INPUT_PULLUP);
-  pinMode(direccionX2, INPUT_PULLUP);
-  pinMode(direccionY2, INPUT_PULLUP);
-
   pinMode(pulsador_guardar, INPUT_PULLUP);
   pinMode(pulsador_realizar, INPUT_PULLUP);
   pinMode(pulsador_nuevo, INPUT_PULLUP);
@@ -106,54 +89,7 @@ void setup()
 
 void loop()
 {
-  lecturaX = analogRead(direccionX);
-  lecturaY = analogRead(direccionY);
-  lecturaX2 = analogRead(direccionX2);
-  lecturaY2 = analogRead(direccionY2);
-
-  lectura_pulsador_guardar = !digitalRead(pulsador_guardar);
-  lectura_pulsador_realizar = !digitalRead(pulsador_realizar);
-  lectura_pulsador_nuevo = !digitalRead(pulsador_nuevo);
-
-  if (lecturaX >= 550)
-  {
-    posicion_servo++;
-
-    if (posicion_servo > 180)
-    {
-      posicion_servo = 180;
-    }
-  }
-  if (lecturaX2 >= 550)
-  {
-    posicion_servo3++;
-
-    if (posicion_servo3 > 180)
-    {
-      posicion_servo3 = 180;
-    }
-  }
-
-  if (lecturaX <= 450)
-  {
-    posicion_servo--;
-
-    if (posicion_servo < 0)
-    {
-      posicion_servo = 0;
-    }
-  }
-  if (lecturaX2 <= 450)
-  {
-    posicion_servo3--;
-
-    if (posicion_servo3 < 0)
-    {
-      posicion_servo3 = 0;
-    }
-  }
-
-  if (lectura_pulsador_guardar)
+  if (guardarPosicion)
   {
     guardarPosiciones();
     lcd.backlight();
@@ -162,50 +98,11 @@ void loop()
     lcd.setCursor(0, 1);
     lcd.print("           ");
     delay(1000); // Espera un segundo para evitar guardar múltiples veces
+
+    guardarPosicion = false;
   }
 
-  servomotor.write(posicion_servo);
-  servomotor3.write(posicion_servo3);
-
-  if (lecturaY >= 550)
-  {
-    posicion_servo2++;
-
-    if (posicion_servo2 > 180)
-    {
-      posicion_servo2 = 180;
-    }
-  }
-  if (lecturaY2 >= 550)
-  {
-    posicion_servo4++;
-
-    if (posicion_servo4 > 180)
-    {
-      posicion_servo4 = 180;
-    }
-  }
-
-  if (lecturaY <= 450)
-  {
-    posicion_servo2--;
-
-    if (posicion_servo2 < 0)
-    {
-      posicion_servo2 = 0;
-    }
-  }
-  if (lecturaY2 <= 450)
-  {
-    posicion_servo4--;
-
-    if (posicion_servo4 < 0)
-    {
-      posicion_servo4 = 0;
-    }
-  }
-
-  if (lectura_pulsador_realizar)
+  if (realizarAccion)
   {
     restaurarPosiciones();
     servomotor.write(posicion_servo);
@@ -218,27 +115,43 @@ void loop()
     lcd.setCursor(0, 1);
     lcd.print("           ");
     delay(1000); // Espera un segundo para evitar guardar múltiples veces
+
+    realizarAccion = false;
   }
 
-  if (lectura_pulsador_nuevo)
+  if (realizarAccionNuevo)
   {
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 3; i++)
     {
-      // Subir y bajar dos veces
+      // Subir y bajar tres veces
       // Código para subir
-      // ...
+      posicion_servo++;
+      if (posicion_servo > 180)
+      {
+        posicion_servo = 180;
+      }
+      servomotor.write(posicion_servo);
       delay(1000); // Esperar un segundo antes de bajar nuevamente
+
+      // Código para bajar
+      posicion_servo--;
+      if (posicion_servo < 0)
+      {
+        posicion_servo = 0;
+      }
+      servomotor.write(posicion_servo);
+      delay(1000); // Esperar un segundo antes de subir nuevamente
     }
     delay(1000); // Espera un segundo para evitar ejecutar múltiples veces
+
+    realizarAccionNuevo = false;
   }
 
-  servomotor2.write(posicion_servo2);
-  servomotor4.write(posicion_servo4);
-  delay(10);
   lcd.backlight();
   lcd.setCursor(0, 0);
   lcd.print("Brazo robotico ");
   lcd.setCursor(0, 1);
   lcd.print("           ");
+  delay(10);
 }
 
