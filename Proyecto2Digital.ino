@@ -2,6 +2,7 @@
 #include <EEPROM.h>
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
+
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 Servo servomotor;
@@ -78,13 +79,9 @@ void setup() {
 
   pinMode(pulsador_guardar, INPUT_PULLUP);
   pinMode(pulsador_realizar, INPUT_PULLUP);
-  pinMode(pulsador_guardar2, INPUT_PULLUP);
-  pinMode(pulsador_realizar2, INPUT_PULLUP);
 
   attachInterrupt(digitalPinToInterrupt(pulsador_guardar), handleGuardarPosicion, FALLING);
   attachInterrupt(digitalPinToInterrupt(pulsador_realizar), handleRealizarAccion, FALLING);
-  attachInterrupt(digitalPinToInterrupt(pulsador_guardar2), handleGuardarPosicion, FALLING);
-  attachInterrupt(digitalPinToInterrupt(pulsador_realizar2), handleRealizarAccion, FALLING);
 
   restaurarPosiciones();
   servomotor.write(posicion_servo);
@@ -101,8 +98,6 @@ void loop() {
 
   lectura_pulsador_guardar = digitalRead(pulsador_guardar);
   lectura_pulsador_realizar = digitalRead(pulsador_realizar);
-  lectura_pulsador_guardar2 = digitalRead(pulsador_guardar2);
-  lectura_pulsador_realizar2 = digitalRead(pulsador_realizar2);
 
   if (lecturaX >= 550) {
     posicion_servo++;
@@ -111,6 +106,7 @@ void loop() {
       posicion_servo = 180;
     }
   }
+  
   if (lecturaX2 >= 550) {
     posicion_servo3++;
 
@@ -118,7 +114,7 @@ void loop() {
       posicion_servo3 = 180;
     }
   }
-
+  
   if (lecturaX <= 450) {
     posicion_servo--;
 
@@ -126,6 +122,7 @@ void loop() {
       posicion_servo = 0;
     }
   }
+  
   if (lecturaX2 <= 450) {
     posicion_servo3--;
 
@@ -138,9 +135,7 @@ void loop() {
     guardarPosiciones();
     lcd.backlight();
     lcd.setCursor(0, 0);
-    lcd.print("guardando         ");
-    lcd.setCursor(0, 1);
-    lcd.print("           ");
+    lcd.print("Guardando...");
     delay(1000);  // Espera un segundo para evitar guardar múltiples veces
   }
 
@@ -154,6 +149,7 @@ void loop() {
       posicion_servo2 = 180;
     }
   }
+
   if (lecturaY2 >= 550) {
     posicion_servo4++;
 
@@ -169,6 +165,7 @@ void loop() {
       posicion_servo2 = 0;
     }
   }
+
   if (lecturaY2 <= 450) {
     posicion_servo4--;
 
@@ -185,25 +182,12 @@ void loop() {
     servomotor4.write(posicion_servo4);
     lcd.backlight();
     lcd.setCursor(0, 0);
-    lcd.print("Reproduciendo         ");
-    lcd.setCursor(0, 1);
-    lcd.print("           ");
+    lcd.print("Reproduciendo...");
     delay(1000);  // Espera un segundo para evitar reproducir múltiples veces
   }
 
-  if (guardarPosicion) {
-    guardarPosiciones();
-    guardarPosicion = false;
-  }
-
-  if (realizarAccion) {
-    restaurarPosiciones();
-    servomotor.write(posicion_servo);
-    servomotor2.write(posicion_servo2);
-    servomotor3.write(posicion_servo3);
-    servomotor4.write(posicion_servo4);
-    realizarAccion = false;
-  }
+  servomotor2.write(posicion_servo2);
+  servomotor4.write(posicion_servo4);
 
   delay(50);  // Pequeña pausa para estabilidad
 }
