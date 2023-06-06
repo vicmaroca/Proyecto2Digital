@@ -1,6 +1,6 @@
 #include <Servo.h>
 #include <EEPROM.h>
-#include <Wire.h> 
+#include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
 LiquidCrystal_I2C lcd(0x27, 20, 4);
@@ -48,16 +48,6 @@ void guardarPosiciones() {
   EEPROM.write(EEPROM_ADDR_SERVO4, posicion_servo4);
 }
 
-void restaurarPosiciones() {
-  posicion_servo = EEPROM.read(EEPROM_ADDR_SERVO1);
-  posicion_servo2 = EEPROM.read(EEPROM_ADDR_SERVO2);
-  posicion_servo3 = EEPROM.read(EEPROM_ADDR_SERVO3);
-  posicion_servo4 = EEPROM.read(EEPROM_ADDR_SERVO4);
-
-  lcd.init();                    
-  lcd.init();
-}
-
 void handleGuardarPosicion() {
   guardarPosicion = true;
 }
@@ -67,6 +57,9 @@ void handleRealizarAccion() {
 }
 
 void setup() {
+  // Configurar comunicación serial
+  Serial.begin(9600);
+
   servomotor.attach(2);
   servomotor2.attach(3);
   servomotor3.attach(4);
@@ -106,7 +99,6 @@ void loop() {
       posicion_servo = 180;
     }
   }
-  
   if (lecturaX2 >= 550) {
     posicion_servo3++;
 
@@ -114,7 +106,7 @@ void loop() {
       posicion_servo3 = 180;
     }
   }
-  
+
   if (lecturaX <= 450) {
     posicion_servo--;
 
@@ -122,7 +114,6 @@ void loop() {
       posicion_servo = 0;
     }
   }
-  
   if (lecturaX2 <= 450) {
     posicion_servo3--;
 
@@ -135,7 +126,9 @@ void loop() {
     guardarPosiciones();
     lcd.backlight();
     lcd.setCursor(0, 0);
-    lcd.print("Guardando...");
+    lcd.print("guardando         ");
+    lcd.setCursor(0, 1);
+    lcd.print("           ");
     delay(1000);  // Espera un segundo para evitar guardar múltiples veces
   }
 
@@ -149,7 +142,6 @@ void loop() {
       posicion_servo2 = 180;
     }
   }
-
   if (lecturaY2 >= 550) {
     posicion_servo4++;
 
@@ -165,7 +157,6 @@ void loop() {
       posicion_servo2 = 0;
     }
   }
-
   if (lecturaY2 <= 450) {
     posicion_servo4--;
 
@@ -182,12 +173,32 @@ void loop() {
     servomotor4.write(posicion_servo4);
     lcd.backlight();
     lcd.setCursor(0, 0);
-    lcd.print("Reproduciendo...");
-    delay(1000);  // Espera un segundo para evitar reproducir múltiples veces
+    lcd.print("Reproduciendo         ");
+    lcd.setCursor(0, 1);
+    lcd.print("           ");
+    delay(1000);  // Espera un segundo para evitar guardar múltiples veces
   }
 
   servomotor2.write(posicion_servo2);
   servomotor4.write(posicion_servo4);
 
-  delay(50);  // Pequeña pausa para estabilidad
+  // Enviar datos por comunicación serial
+  Serial.print("S1:");
+  Serial.print(posicion_servo);
+  Serial.print(",");
+  Serial.print("S2:");
+  Serial.print(posicion_servo2);
+  Serial.print(",");
+  Serial.print("S3:");
+  Serial.print(posicion_servo3);
+  Serial.print(",");
+  Serial.print("S4:");
+  Serial.println(posicion_servo4);
+
+  delay(10);
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Brazo robotico ");
+  lcd.setCursor(0, 1);
+  lcd.print("           ");
 }
