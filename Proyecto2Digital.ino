@@ -1,10 +1,10 @@
-#include <avr/interrupt.h>
 #include <Servo.h>
 #include <EEPROM.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
 LiquidCrystal_I2C lcd(0x27, 20, 4);
+
 Servo servomotor;
 Servo servomotor2;
 Servo servomotor3;
@@ -41,9 +41,6 @@ volatile bool realizarAccion = false;
 volatile bool guardarPosicion2 = false;
 volatile bool realizarAccion2 = false;
 
-volatile unsigned long timerCounter = 0;
-const unsigned long interval = 10; // Intervalo de tiempo deseado en milisegundos
-
 void guardarPosiciones() {
   EEPROM.write(EEPROM_ADDR_SERVO1, posicion_servo);
   EEPROM.write(EEPROM_ADDR_SERVO2, posicion_servo2);
@@ -58,7 +55,7 @@ void restaurarPosiciones() {
   posicion_servo4 = EEPROM.read(EEPROM_ADDR_SERVO4);
 
   lcd.init();
-  lcd.init();
+  lcd.backlight();
 }
 
 void handleGuardarPosicion() {
@@ -85,17 +82,14 @@ void setup() {
   pinMode(pulsador_guardar, INPUT_PULLUP);
   pinMode(pulsador_realizar, INPUT_PULLUP);
 
-  attachInterrupt(digitalPinToInterrupt(pulsador_guardar), handleGuardarPosicion, FALLING);
-  attachInterrupt(digitalPinToInterrupt(pulsador_realizar), handleRealizarAccion, FALLING);
-  attachInterrupt(digitalPinToInterrupt(pulsador_guardar), handleGuardarPosicion, FALLING);
-  attachInterrupt(digitalPinToInterrupt(pulsador_realizar), handleRealizarAccion, FALLING);
+  TCCR0A = 0;  // Configurar Timer0 en modo normal
+  TCCR0B = (1 << CS02) | (1 << CS00);  // Configurar prescaler en 1024
+  TIMSK0 = (1 << TOIE0);  // Habilitar interrupción por desbordamiento del Timer0
 
-  // Configurar Timer0 para generar una interrupción cada 10 ms
-  noInterrupts(); // Deshabilitar interrupciones
-  TCCR0A = 0; // Configurar Timer0 en modo normal
-  TCCR0B = (1 << CS02) | (1 << CS00); // Configurar prescaler en 1024
-  TIMSK0 = (1 << TOIE0); // Habilitar interrupción por desbordamiento del Timer0
-  interrupts(); // Habilitar interrupciones
+  attachInterrupt(digitalPinToInterrupt(pulsador_guardar), handleGuardarPosicion, FALLING);
+  attachInterrupt(digitalPinToInterrupt(pulsador_realizar), handleRealizarAccion, FALLING);
+  attachInterrupt(digitalPinToInterrupt(pulsador_guardar), handleGuardarPosicion, FALLING);
+  attachInterrupt(digitalPinToInterrupt(pulsador_realizar), handleRealizarAccion, FALLING);
 
   restaurarPosiciones();
   servomotor.write(posicion_servo);
@@ -105,6 +99,12 @@ void setup() {
 }
 
 void loop() {
+  // Aquí se realiza el código principal del loop
+  // ...
+}
+
+// Rutina de interrupción del Timer0
+ISR(TIMER0_OVF_vect) {
   lecturaX = analogRead(direccionX);
   lecturaY = analogRead(direccionY);
   lecturaX2 = analogRead(direccionX2);
@@ -115,106 +115,94 @@ void loop() {
   lectura_pulsador_guardar2 = digitalRead(pulsador_guardar);
   lectura_pulsador_realizar2 = digitalRead(pulsador_realizar);
 
-  // Resto del código dentro del bucle principal
-}
+  if (lecturaX >= 550) {
+    posicion_servo++;
 
-// Rutina de interrupción para el desbordamiento del Timer0
-ISR(TIMER0_OVF_vect) {
-  timerCounter++; // Incrementar el contador de tiempo
-
-  // Verificar si ha transcurrido el intervalo deseado
-  if (timerCounter >= interval) {
-    timerCounter = 0; // Reiniciar el contador
-
-    // Realizar las tareas deseadas en el intervalo de tiempo
-    if (lecturaX >= 550) {
-      posicion_servo++;
-
-      if (posicion_servo > 180) {
-        posicion_servo = 180;
-      }
+    if (posicion_servo > 180) {
+      posicion_servo = 180;
     }
-    if (lecturaX2 >= 550) {
-      posicion_servo3++;
-
-      if (posicion_servo3 > 180) {
-        posicion_servo3 = 180;
-      }
-    }
-
-    if (lecturaX <= 450) {
-      posicion_servo--;
-
-      if (posicion_servo < 0) {
-        posicion_servo = 0;
-      }
-    }
-    if (lecturaX2 <= 450) {
-      posicion_servo3--;
-
-      if (posicion_servo3 < 0) {
-        posicion_servo3 = 0;
-      }
-    }
-
-    if (lectura_pulsador_guardar == LOW) {
-      guardarPosiciones();
-      lcd.backlight();
-      lcd.setCursor(0, 0);
-      lcd.print("guardando         ");
-      lcd.setCursor(0, 1);
-      lcd.print("           ");
-      delay(1000); // Espera un segundo para evitar guardar múltiples veces
-    }
-
-    servomotor.write(posicion_servo);
-    servomotor3.write(posicion_servo3);
-
-    if (lecturaY >= 550) {
-      posicion_servo2++;
-
-      if (posicion_servo2 > 180) {
-        posicion_servo2 = 180;
-      }
-    }
-    if (lecturaY2 >= 550) {
-      posicion_servo4++;
-
-      if (posicion_servo4 > 180) {
-        posicion_servo4 = 180;
-      }
-    }
-
-    if (lecturaY <= 450) {
-      posicion_servo2--;
-
-      if (posicion_servo2 < 0) {
-        posicion_servo2 = 0;
-      }
-    }
-    if (lecturaY2 <= 450) {
-      posicion_servo4--;
-
-      if (posicion_servo4 < 0) {
-        posicion_servo4 = 0;
-      }
-    }
-
-    if (lectura_pulsador_realizar == LOW) {
-      restaurarPosiciones();
-      servomotor.write(posicion_servo);
-      servomotor2.write(posicion_servo2);
-      servomotor3.write(posicion_servo3);
-      servomotor4.write(posicion_servo4);
-      lcd.backlight();
-      lcd.setCursor(0, 0);
-      lcd.print("Reproduciendo         ");
-      lcd.setCursor(0, 1);
-      lcd.print("           ");
-      delay(1000); // Espera un segundo para evitar guardar múltiples veces
-    }
-
-    servomotor2.write(posicion_servo2);
-    servomotor4.write(posicion_servo4);
   }
+  if (lecturaX2 >= 550) {
+    posicion_servo3++;
+
+    if (posicion_servo3 > 180) {
+      posicion_servo3 = 180;
+    }
+  }
+
+  if (lecturaX <= 450) {
+    posicion_servo--;
+
+    if (posicion_servo < 0) {
+      posicion_servo = 0;
+    }
+  }
+  if (lecturaX2 <= 450) {
+    posicion_servo3--;
+
+    if (posicion_servo3 < 0) {
+      posicion_servo3 = 0;
+    }
+  }
+
+  if (lectura_pulsador_guardar == LOW) {
+    guardarPosiciones();
+    lcd.backlight();
+    lcd.setCursor(0, 0);
+    lcd.print("guardando         ");
+    lcd.setCursor(0, 1);
+    lcd.print("           ");
+    delay(1000);  // Espera un segundo para evitar guardar múltiples veces
+  }
+
+  servomotor.write(posicion_servo);
+  servomotor3.write(posicion_servo3);
+
+  if (lecturaY >= 550) {
+    posicion_servo2++;
+
+    if (posicion_servo2 > 180) {
+      posicion_servo2 = 180;
+    }
+  }
+  if (lecturaY2 >= 550) {
+    posicion_servo4++;
+
+    if (posicion_servo4 > 180) {
+      posicion_servo4 = 180;
+    }
+  }
+
+  if (lecturaY <= 450) {
+    posicion_servo2--;
+
+    if (posicion_servo2 < 0) {
+      posicion_servo2 = 0;
+    }
+  }
+  if (lecturaY2 <= 450) {
+    posicion_servo4--;
+
+    if (posicion_servo4 < 0) {
+      posicion_servo4 = 0;
+    }
+  }
+
+  if (lectura_pulsador_realizar == LOW) {
+    restaurarPosiciones();
+    servomotor.write(posicion_servo);
+    servomotor2.write(posicion_servo2);
+    servomotor3.write(posicion_servo3);
+    servomotor4.write(posicion_servo4);
+    lcd.backlight();
+    lcd.setCursor(0, 0);
+    lcd.print("Reproduciendo         ");
+    lcd.setCursor(0, 1);
+    lcd.print("           ");
+    delay(1000);  // Espera un segundo para evitar guardar múltiples veces
+  }
+
+  servomotor2.write(posicion_servo2);
+
+  servomotor4.write(posicion_servo4);
 }
