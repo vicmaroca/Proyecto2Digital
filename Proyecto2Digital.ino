@@ -1,8 +1,11 @@
 #include <Servo.h>
 #include <EEPROM.h>
-#include <Wire.h> 
+#include <Wire.h>
 #include <LiquidCrystal_I2C.h>
-LiquidCrystal_I2C lcd(0x27,20,4);
+#include <SoftwareSerial.h>
+
+SoftwareSerial serial(2, 3); // RX, TX
+LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 Servo servomotor;
 Servo servomotor2;
@@ -53,7 +56,7 @@ void restaurarPosiciones() {
   posicion_servo3 = EEPROM.read(EEPROM_ADDR_SERVO3);
   posicion_servo4 = EEPROM.read(EEPROM_ADDR_SERVO4);
 
-  lcd.init();                    
+  lcd.init();
   lcd.init();
 }
 
@@ -84,7 +87,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(pulsador_guardar), handleGuardarPosicion, FALLING);
   attachInterrupt(digitalPinToInterrupt(pulsador_realizar), handleRealizarAccion, FALLING);
   attachInterrupt(digitalPinToInterrupt(pulsador_guardar), handleGuardarPosicion, FALLING);
-  attachInterrupt(digitalPinToInterrupt(pulsador_realizar), handleRealizarAccion, FALLING); 
+  attachInterrupt(digitalPinToInterrupt(pulsador_realizar), handleRealizarAccion, FALLING);
 
   restaurarPosiciones();
   servomotor.write(posicion_servo);
@@ -92,8 +95,7 @@ void setup() {
   servomotor3.write(posicion_servo3);
   servomotor4.write(posicion_servo4);
 
-  // Inicializar comunicación serial
-  Serial.begin(9600);
+  serial.begin(9600); // Inicializa la comunicación serial
 }
 
 void loop() {
@@ -107,36 +109,16 @@ void loop() {
   lectura_pulsador_guardar2 = digitalRead(pulsador_guardar);
   lectura_pulsador_realizar2 = digitalRead(pulsador_realizar);
 
-  // Leer datos desde el puerto serial
-  if (Serial.available() > 0) {
-    String mensaje = Serial.readString();
-    // Hacer algo con el mensaje recibido
-    // Ejemplo: ajustar la posición de los servos
-    if (mensaje.startsWith("P1:")) {
-      int nuevaPosicion1 = mensaje.substring(3).toInt();
-      if (nuevaPosicion1 >= 0 && nuevaPosicion1 <= 180) {
-        posicion_servo = nuevaPosicion1;
-        servomotor.write(posicion_servo);
-      }
-    }
-    else if (mensaje.startsWith("P2:")) {
-      int nuevaPosicion2 = mensaje.substring(3).toInt();
-      if (nuevaPosicion2 >= 0 && nuevaPosicion2 <= 180) {
-        posicion_servo2 = nuevaPosicion2;
-        servomotor2.write(posicion_servo2);
-      }
-    }
-    // ... Agrega más comandos según tus necesidades
-  }
-
   if (lecturaX >= 550) {
     posicion_servo++;
+
     if (posicion_servo > 180) {
       posicion_servo = 180;
     }
   }
   if (lecturaX2 >= 550) {
     posicion_servo3++;
+
     if (posicion_servo3 > 180) {
       posicion_servo3 = 180;
     }
@@ -144,12 +126,14 @@ void loop() {
 
   if (lecturaX <= 450) {
     posicion_servo--;
+
     if (posicion_servo < 0) {
       posicion_servo = 0;
     }
   }
   if (lecturaX2 <= 450) {
     posicion_servo3--;
+
     if (posicion_servo3 < 0) {
       posicion_servo3 = 0;
     }
@@ -162,7 +146,7 @@ void loop() {
     lcd.print("guardando         ");
     lcd.setCursor(0, 1);
     lcd.print("           ");
-    delay(1000);  // Espera un segundo para evitar guardar múltiples veces
+    delay(1000); // Espera un segundo para evitar guardar múltiples veces
   }
 
   servomotor.write(posicion_servo);
@@ -170,12 +154,14 @@ void loop() {
 
   if (lecturaY >= 550) {
     posicion_servo2++;
+
     if (posicion_servo2 > 180) {
       posicion_servo2 = 180;
     }
   }
   if (lecturaY2 >= 550) {
     posicion_servo4++;
+
     if (posicion_servo4 > 180) {
       posicion_servo4 = 180;
     }
@@ -183,12 +169,14 @@ void loop() {
 
   if (lecturaY <= 450) {
     posicion_servo2--;
+
     if (posicion_servo2 < 0) {
       posicion_servo2 = 0;
     }
   }
   if (lecturaY2 <= 450) {
     posicion_servo4--;
+
     if (posicion_servo4 < 0) {
       posicion_servo4 = 0;
     }
@@ -205,11 +193,21 @@ void loop() {
     lcd.print("Reproduciendo         ");
     lcd.setCursor(0, 1);
     lcd.print("           ");
-    delay(1000);  // Espera un segundo para evitar guardar múltiples veces
+    delay(1000); // Espera un segundo para evitar guardar múltiples veces
   }
 
   servomotor2.write(posicion_servo2);
+
   servomotor4.write(posicion_servo4);
+
+  // Envía los datos por la comunicación serial
+  serial.print(posicion_servo);
+  serial.print(",");
+  serial.print(posicion_servo2);
+  serial.print(",");
+  serial.print(posicion_servo3);
+  serial.print(",");
+  serial.println(posicion_servo4);
 
   delay(10);
   lcd.backlight();
